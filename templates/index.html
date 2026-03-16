@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Spotify by HO3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #121212; color: #fff; font-family: Arial, sans-serif; padding: 40px; }
+        h1 { color: #1DB954; margin-bottom: 30px; font-size: 2rem; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .upload-section { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        .upload-section h2 { color: #1DB954; margin-bottom: 15px; }
+        input[type="file"] { color: #fff; margin-bottom: 10px; display: block; }
+        button { background: #1DB954; color: #000; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; margin: 5px; }
+        button:hover { background: #1ed760; }
+        button.delete { background: #e74c3c; color: #fff; }
+        button.delete:hover { background: #c0392b; }
+        .songs-section { background: #1e1e1e; padding: 20px; border-radius: 10px; }
+        .songs-section h2 { color: #1DB954; margin-bottom: 15px; }
+        .song-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #2a2a2a; border-radius: 8px; margin-bottom: 10px; }
+        .song-name { flex: 1; }
+        .song-controls { display: flex; gap: 10px; }
+        audio { width: 100%; margin-top: 15px; }
+        .message { color: #1DB954; margin-top: 10px; font-size: 0.9rem; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Mini Spotify by HO3</h1>
+
+        <div class="upload-section">
+            <h2>Upload Song</h2>
+            <input type="file" id="songFile" accept="audio/*">
+            <button onclick="uploadSong()">⬆️ Upload</button>
+            <p id="uploadMessage" class="message"></p>
+        </div>
+
+        <div class="songs-section">
+            <h2>Your Songs</h2>
+            <button onclick="loadSongs()">🔄 Refresh Songs</button>
+            <div id="songsList" style="margin-top: 15px;"></div>
+            <audio id="audioPlayer" controls style="display:none;"></audio>
+        </div>
+    </div>
+
+    <script>
+        async function uploadSong() {
+            const file = document.getElementById('songFile').files[0];
+            if (!file) { alert('Please select a file first!'); return; }
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            document.getElementById('uploadMessage').textContent = data.message || data.error;
+            loadSongs();
+        }
+
+        async function loadSongs() {
+            const res = await fetch('/songs');
+            const data = await res.json();
+            const list = document.getElementById('songsList');
+            if (data.songs.length === 0) {
+                list.innerHTML = '<p style="color:#888">No songs uploaded yet</p>';
+                return;
+            }
+            list.innerHTML = data.songs.map(song => `
+                <div class="song-item">
+                    <span class="song-name">🎵 ${song}</span>
+                    <div class="song-controls">
+                        <button onclick="playSong('${song}')">▶️ Play</button>
+                        <button class="delete" onclick="deleteSong('${song}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function playSong(filename) {
+            const res = await fetch(`/play/${filename}`);
+            const data = await res.json();
+            const player = document.getElementById('audioPlayer');
+            player.src = data.url;
+            player.style.display = 'block';
+            player.play();
+        }
+
+        async function deleteSong(filename) {
+            if (!confirm(`Delete ${filename}?`)) return;
+            const res = await fetch(`/delete/${filename}`, { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadSongs();
+        }
+
+        // Load songs on page load
+        loadSongs();
+    </script>
+</body>
+</html>
